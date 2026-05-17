@@ -1,52 +1,62 @@
-Descripción General
+# 🚗 Fleet Monitor
 
-Este proyecto implementa un sistema distribuido para monitoreo de flotas vehiculares utilizando:
+> Sistema distribuido de telemetría vehicular en tiempo real
 
-MQTT para comunicación IoT
-RabbitMQ como broker empresarial
-Python para simulación y procesamiento
-Spring Boot para microservicios y API REST
+![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=flat-square&logo=python&logoColor=white)
+![Java](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![RabbitMQ](https://img.shields.io/badge/RabbitMQ-FF6600?style=flat-square&logo=rabbitmq&logoColor=white)
+![MQTT](https://img.shields.io/badge/MQTT-Mosquitto-3C5280?style=flat-square&logo=eclipsemosquitto&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
 
-El sistema simula sensores de vehículos que generan telemetría en tiempo real, la transmiten mediante MQTT y posteriormente son procesadas y consumidas por microservicios Spring Boot utilizando RabbitMQ.
+---
 
-Arquitectura del Sistema
-[Sensores Python]
-        |
-        | MQTT
-        v
-[ Mosquitto Broker ]
-        |
-        | Bridge Python MQTT → RabbitMQ
-        v
-[ RabbitMQ ]
-        |
-        | AMQP
-        v
-[ Spring Boot Microservices ]
-        |
-        | REST API
-        v
-[ Cliente / Postman ]
-Tecnologías Utilizadas
-Backend y Mensajería
-Python 3
-Java 17
-Spring Boot
-RabbitMQ
-Mosquitto MQTT
-Librerías Python
-paho-mqtt
-pika
-sqlite3
-Dependencias Spring Boot
-Spring Web
-Spring AMQP
-Spring Data JPA
-H2 Database
-Infraestructura
-Docker
-Docker Compose
-Estructura del Proyecto
+## Descripción General
+
+Sistema que simula sensores de vehículos generando telemetría en tiempo real, transmitida mediante **MQTT** y procesada por microservicios **Spring Boot** a través de **RabbitMQ**.
+
+---
+
+## Arquitectura del Sistema
+
+```
+┌─────────────────────┐
+│   Sensores Python   │  GPS · Temperatura · Combustible · Velocidad
+└────────┬────────────┘
+         │  MQTT publish
+         ▼
+┌─────────────────────┐
+│  Mosquitto Broker   │  puerto 1883
+└────────┬────────────┘
+         │  MQTT subscribe
+         ▼
+┌─────────────────────┐
+│  MQTT → RabbitMQ    │  mqtt_rabbitmq_bridge.py
+│      Bridge         │
+└────────┬────────────┘
+         │  AMQP publish
+         ▼
+┌─────────────────────┐
+│     RabbitMQ        │  colas · persistencia · distribución
+└────────┬────────────┘
+         │  AMQP consume
+         ▼
+┌─────────────────────┐
+│  Spring Boot        │  GpsConsumer · AlertConsumer · FleetController
+│  Microservices      │
+└────────┬────────────┘
+         │  REST API
+         ▼
+┌─────────────────────┐
+│  Cliente / Postman  │  localhost:8080
+└─────────────────────┘
+```
+
+---
+
+## Estructura del Proyecto
+
+```
 practica-distribuidos/
 │
 ├── bridge/
@@ -67,233 +77,138 @@ practica-distribuidos/
 ├── requirements.txt
 │
 └── fleet-monitor/
-    │
-    ├── src/main/java/com/fleet/monitor/
-    │
-    ├── config/
-    │   └── RabbitMQConfig.java
-    │
-    ├── consumer/
-    │   ├── GpsConsumer.java
-    │   └── AlertConsumer.java
-    │
-    ├── controller/
-    │   └── FleetController.java
-    │
-    └── resources/
-        └── application.properties
-Parte 1 - MQTT + RabbitMQ + Python
-Objetivo
+    └── src/main/java/com/fleet/monitor/
+        ├── config/
+        │   └── RabbitMQConfig.java
+        ├── consumer/
+        │   ├── GpsConsumer.java
+        │   └── AlertConsumer.java
+        ├── controller/
+        │   └── FleetController.java
+        └── resources/
+            └── application.properties
+```
 
-Implementar un sistema de telemetría IoT utilizando MQTT y RabbitMQ.
+---
 
-Componentes
-1. Sensor Simulator
+## Parte 1 — MQTT + RabbitMQ + Python
 
-Archivo:
+### Componentes
 
-sensor_simulador/sensorsimulador.py
+| Componente | Archivo | Descripción |
+|---|---|---|
+| Sensor Simulator | `sensor_simulador/sensorsimulador.py` | Simula sensores vehiculares (GPS, temperatura, combustible, velocidad) |
+| Mosquitto Broker | Docker Compose | Gestiona comunicación MQTT entre sensores y consumidores |
+| MQTT-RabbitMQ Bridge | `bridge/mqtt_rabbitmq_bridge.py` | Suscribe topics MQTT y publica en RabbitMQ |
+| RabbitMQ | Docker Compose | Broker AMQP con colas persistentes |
+| Subscriber | `suscriber/suscriber.py` | Consume mensajes y almacena telemetría en SQLite |
 
-Simula sensores vehiculares enviando:
+### Colas RabbitMQ
 
-GPS
-Temperatura
-Combustible
-Velocidad
+| Cola | Tipo |
+|---|---|
+| `cola.gps.telemetria` | GPS |
+| `cola.alertas.temperatura` | Alerta |
+| `cola.combustible.nivel` | Nivel |
+| `cola.notificaciones` | Notificación |
 
-mediante MQTT.
+### Instalación y Ejecución
 
-2. Mosquitto MQTT Broker
-
-Gestiona la comunicación MQTT entre sensores y consumidores.
-
-Se ejecuta mediante Docker Compose.
-
-3. MQTT-RabbitMQ Bridge
-
-Archivo:
-
-bridge/mqtt_rabbitmq_bridge.py
-
-Responsabilidades:
-
-Suscribirse a topics MQTT
-Recibir telemetría
-Enviar mensajes a RabbitMQ
-
-Actúa como puente entre IoT y procesamiento empresarial.
-
-4. RabbitMQ
-
-Broker AMQP encargado de:
-
-colas
-persistencia
-distribución empresarial
-
-Colas utilizadas:
-
-cola.gps.telemetria
-cola.alertas.temperatura
-cola.combustible.nivel
-cola.notificaciones
-5. Subscriber
-
-Archivo:
-
-suscriber/suscriber.py
-
-Consume mensajes y almacena telemetría en SQLite.
-
-Docker Compose
-
-Levantar infraestructura:
-
+```bash
+# 1. Levantar infraestructura
 docker compose up -d
 
-Servicios:
-
-Mosquitto
-RabbitMQ
-Instalación Python
-Crear entorno virtual
+# 2. Crear y activar entorno virtual
 python3 -m venv venv
-Activar entorno
 source venv/bin/activate
-Instalar dependencias
+
+# 3. Instalar dependencias
 pip install -r requirements.txt
-Ejecución Parte 1
-1. Levantar Docker
-docker compose up -d
-2. Ejecutar simulador
+
+# 4. Ejecutar simulador de sensores
 python sensor_simulador/sensorsimulador.py
-3. Ejecutar bridge MQTT → RabbitMQ
+
+# 5. Ejecutar bridge MQTT → RabbitMQ
 python bridge/mqtt_rabbitmq_bridge.py
-4. Ejecutar subscriber
+
+# 6. Ejecutar subscriber
 python suscriber/suscriber.py
-Parte 2 - Spring Boot + RabbitMQ
-Objetivo
+```
 
-Implementar microservicios Spring Boot que consuman RabbitMQ y expongan una API REST.
+---
 
-Componentes Spring Boot
-1. RabbitMQConfig
+## Parte 2 — Spring Boot + RabbitMQ
 
-Configura las colas RabbitMQ.
+### Componentes
 
-Archivo:
+| Componente | Archivo | Descripción |
+|---|---|---|
+| RabbitMQConfig | `RabbitMQConfig.java` | Configura las colas RabbitMQ |
+| GpsConsumer | `GpsConsumer.java` | Consume mensajes GPS desde RabbitMQ |
+| AlertConsumer | `AlertConsumer.java` | Consume alertas de temperatura y combustible |
+| FleetController | `FleetController.java` | Expone la API REST |
 
-RabbitMQConfig.java
-2. GpsConsumer
+### Configuración (`application.properties`)
 
-Consume mensajes GPS desde RabbitMQ.
-
-Archivo:
-
-GpsConsumer.java
-3. AlertConsumer
-
-Consume alertas de:
-
-temperatura
-combustible
-
-Archivo:
-
-AlertConsumer.java
-4. FleetController
-
-Expone API REST.
-
-Endpoints:
-
-GET /api/fleet/status
-GET /api/fleet/vehicle/{id}/telemetria
-Configuración Spring Boot
-
-Archivo:
-
-application.properties
-
-Configuración RabbitMQ:
-
+```properties
 spring.rabbitmq.host=localhost
 spring.rabbitmq.port=5672
 spring.rabbitmq.username=guest
 spring.rabbitmq.password=guest
-Ejecución Spring Boot
+```
 
-Entrar al proyecto:
+### Ejecución
 
+```bash
 cd fleet-monitor
-
-Ejecutar:
-
 mvn spring-boot:run
-Verificación API REST
-Estado general
+```
+
+### Endpoints REST
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `GET` | `/api/fleet/status` | Estado general de la flota |
+| `GET` | `/api/fleet/vehicle/{id}/telemetria` | Telemetría por vehículo |
+
+```bash
+# Verificar estado general
 curl http://localhost:8080/api/fleet/status
-Telemetría por vehículo
+
+# Consultar vehículo específico
 curl http://localhost:8080/api/fleet/vehicle/VH-001/telemetria
-RabbitMQ Management
+```
 
-Panel administrativo:
+---
 
-http://localhost:15672
+## Puertos del Sistema
 
-Credenciales:
+| Servicio | Puerto |
+|---|---|
+| Mosquitto MQTT | `1883` |
+| RabbitMQ AMQP | `5672` |
+| RabbitMQ Management | `15672` |
+| Spring Boot API | `8080` |
 
-guest / guest
-Flujo Completo del Sistema
-Sensores Python generan telemetría
-Mosquitto recibe mensajes MQTT
-Bridge Python consume MQTT
-Bridge publica en RabbitMQ
-Spring Boot consume colas RabbitMQ
-API REST expone información procesada
-Conceptos Clave
-MQTT
+> Panel de administración RabbitMQ: [http://localhost:15672](http://localhost:15672) — credenciales: `guest / guest`
 
-Protocolo liviano orientado a IoT.
+---
 
-Características:
+## Bases de Datos
 
-bajo consumo
-comunicación publish/subscribe
-eficiente para sensores
-RabbitMQ
+| Base de datos | Uso |
+|---|---|
+| **SQLite** | Almacenamiento local Python (`database/telemetria.db`) |
+| **H2** | Base de datos en memoria para Spring Boot |
 
-Broker empresarial basado en AMQP.
+---
 
-Características:
+## Tecnologías
 
-colas persistentes
-alta confiabilidad
-procesamiento empresarial
-Bridge MQTT → RabbitMQ
+**Backend y Mensajería:** Python 3 · Java 17 · Spring Boot · RabbitMQ · Mosquitto MQTT
 
-Permite integrar:
+**Librerías Python:** `paho-mqtt` · `pika` · `sqlite3`
 
-dispositivos IoT
-sistemas empresariales
+**Dependencias Spring Boot:** Spring Web · Spring AMQP · Spring Data JPA · H2 Database
 
-convirtiendo mensajes MQTT en eventos RabbitMQ.
-
-Base de Datos
-
-Se utilizan dos bases de datos:
-
-SQLite
-
-Utilizada por Python para almacenamiento local.
-
-H2 Database
-
-Utilizada por Spring Boot en memoria.
-
-Puertos Utilizados
-Servicio	Puerto
-Mosquitto MQTT	1883
-RabbitMQ AMQP	5672
-RabbitMQ Management	15672
-Spring Boot API	8080
+**Infraestructura:** Docker · Docker Compose
